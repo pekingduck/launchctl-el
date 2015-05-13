@@ -1,9 +1,8 @@
-;;; launchctl.el --- View and manage Launchctl jobs on Mac OS X.
-
+;;; launchctl.el --- Interface to launchctl on Mac OS X.
 ;; Author: Peking Duck <github.com/pekingduck>
 ;; Version: 1.0
-;; Package-Version: 20150512
-;; Package-Requires: (emacs "24"))
+;; Package-Version: 20150513
+;; Package-Requires: ((emacs "24.1"))
 ;; Keywords: tools, convenience
 ;; URL: http://github.com/pekingduck/launchctl-el
 
@@ -33,17 +32,17 @@
 
 ;;; Commentary:
 
-;; This package lets you load/unload/start/stop/view jobs managed by launchd on
-;; Mac OS X.
+;; Emacs interface to launchctl, an frontend to launchd on Mac OS X.
 ;;
 ;; - Type M-x launchctl RET
+;; - Press "h" to display help
 ;;
 ;;; Code:
 
 (require 'tabulated-list)
 
 (defgroup launchctl nil
-  "View and manage launchctl jobs."
+  "View and manage launchctl agents/daemons."
   :group 'tools
   :group 'convenience)
 
@@ -54,20 +53,22 @@
 
 (defface launchctl-name
   '((t (:weight bold)))
-  "Face for job names in the display buffer."
+  "Face for service names in the display buffer."
   :group 'launchctl)
 
-(defcustom launchctl-agent-directory "~/Library/LaunchAgents/"
-  "Width of status column in the display buffer."
-  :type 'number
+(defcustom launchctl-search-path '("~/Library/LaunchAgents/"
+				   "/System/Library/LaunchAgents/"
+				   "/System/Library/LaunchDaemons/")
+  "The search path for service configuration files."
+  :type 'list
   :group 'launchctl)
 
-(defcustom launchctl-control-template "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+(defcustom launchctl-configuration-template "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
 <plist version=\"1.0\">
   <dict>
     <key>Label</key>
-    <string>{LABEL}</string>
+    <string>{label}</string>
     <key>ProgramArguments</key>
     <array>
       <string></string>
@@ -78,7 +79,7 @@
     <string></string>
   </dict>
 </plist>"
-  "The plist template for new job control files."
+  "The template for new configuration files."
   :type 'string
   :group 'launchctl)
 
@@ -97,66 +98,180 @@
   :type 'number
   :group 'launchctl)
 
+(defcustom launchctl-filter-regex "" "Filter regex for launchctl-refresh. Empty string for no filter.")
+
+(defvar launchctl-plist-keys
+  '("AbandonProcessGroup"
+    "Bonjour"
+    "CPU"
+    "Core"
+    "Data"
+    "Day"
+    "Debug"
+    "Disabled"
+    "EnableGlobbing"
+    "EnableTransactions"
+    "EnvironmentVariables"
+    "ExitTimeOut"
+    "FileSize"
+    "GroupName"
+    "HardResourceLimits"
+    "HideUntilCheckIn"
+    "Hour"
+    "InitGroups"
+    "KeepAlive"
+    "Label"
+    "LaunchOnlyOnce"
+    "LimitLoadFromHosts"
+    "LimitLoadToHosts"
+    "LimitLoadToSessionType"
+    "LowPriorityIO"
+    "MachServices"
+    "MemoryLock"
+    "Minute"
+    "Month"
+    "MulticastGroup"
+    "NetworkState"
+    "Nice"
+    "NumberOfFiles"
+    "NumberOfProcesses"
+    "OnDemand"
+    "OtherServiceEnabled"
+    "PathState"
+    "ProcessType"
+    "Program"
+    "ProgramArguments"
+    "QueueDirectories"
+    "ResetAtClose"
+    "ResidentSetSize"
+    "RootDirectory"
+    "RunAtLoad"
+    "SecureSocketWithKey"
+    "SockFamily"
+    "SockNodeName"
+    "SockPassive"
+    "SockPathMode"
+    "SockPathName"
+    "SockProtocol"
+    "SockServiceName"
+    "SockType"
+    "Sockets"
+    "SoftResourceLimits"
+    "Stack"
+    "StandardErrorPath"
+    "StandardInPath"
+    "StandardOutPath"
+    "StartCalendarInterval"
+    "StartInterval"
+    "StartOnMount"
+    "SuccessfulExit"
+    "ThrottleInterval"
+    "TimeOut"
+    "Umask"
+    "UserName"
+    "Wait"
+    "WaitForDebugger"
+    "WatchPaths"
+    "Weekday"
+    "WorkingDirectory"
+    "inetdCompatibility"
+    ) "A complete list of plist keys used in configuration files.")
+
+(defvar launchctl-key-info
+  '(("g" "Refresh" launchctl-refresh)
+    ("q" "Quit window" quit-window)
+    ("n" "Create new service configuration file" launchctl-new)
+    ("e" "Edit configuration file" launchctl-edit)
+    ("t" "Sort list" tabulated-list-sort)
+    ("l" "Load service" launchctl-load)
+    ("u" "Unload service" launchctl-unload)
+    ("r" "Reload service" launchctl-reload)
+    ("s" "Start service" launchctl-start)
+    ("o" "Stop service" launchctl-stop)
+    ("a" "Restart service" launchctl-restart)
+    ("m" "Remove service" launchctl-remove)
+    ("d" "Disable service permanently" launchctl-disable)
+    ("p" "Enable service permanently" launchctl-enable)
+    ("i" "Display service info" launchctl-info)
+    ("*" "Filter by regex" launchctl-filter)
+    ("$" "Set environment variable" launchctl-setenv)
+    ("#" "Unset environment variable" launchctl-unsetenv)
+    ("h" "Display this help message" launchctl-help))
+  "Key descriptions and bindings")
+
+
 (defvar launchctl-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
-    (define-key map "q" 'quit-window)
-    (define-key map "g" 'launchctl-refresh)
-    (define-key map "n" 'launchctl-new)
-    (define-key map "l" 'launchctl-load)
-    (define-key map "u" 'launchctl-unload)
-    (define-key map "s" 'launchctl-start)
-    (define-key map "o" 'launchctl-stop)
-    (define-key map "i" 'launchctl-info)
-    (define-key map "e" 'launchctl-edit)
-    (define-key map "h" 'launchctl-help)
-    (define-key map "*" 'launchctl-filter)
-    (define-key map "r" 'launchctl-restart)
-    (define-key map "t" 'tabulated-list-sort)
+    (dolist (e launchctl-key-info)
+      (define-key map (car e) (caddr e)))
     map))
 
-(setq launchctl-filter-regex "")
+(defun launchctl-help ()
+  "Display help message."
+  (interactive)
+  (message (mapconcat
+	    (lambda (p) (format "%s - %s" (car p) (cadr p)))
+	    launchctl-key-info
+	    "\n")))
 
-(define-derived-mode launchctl-mode tabulated-list-mode "Launch Control"
-  "Major mode for managing Launchctl jobs on Mac OS X."
-  (setq default-directory launchctl-agent-directory)
+(define-derived-mode launchctl-mode tabulated-list-mode "launchctl"
+  "Major mode for managing Launchd services on Mac OS X."
+  (setq default-directory (car launchctl-search-path))
   (add-hook 'tabulated-list-revert-hook 'launchctl-refresh nil t))
 
-;;;###autoload
 (defun launchctl()
-  "View and manage Launchctl jobs on Mac OS X."
+  "Launchctl - major mode for managing Launchd services on Mac OS X.  This is the entry point."
   (interactive)
-  (switch-to-buffer (launchctl--noselect)))
-
-(defun launchctl--noselect ()
   (let ((buffer (get-buffer-create "*Launchctl*")))
     (with-current-buffer buffer
       (launchctl-mode)
       (launchctl-refresh))
-    buffer))
+    (switch-to-buffer buffer))
+  (message "Press h for help"))
+
+(defun launchctl--noselect ()
+  "Helper function to launch launchctl."
+)
+
+(defun launchctl-setenv ()
+  "Set an environment variable (for all services).  Equivalent to \"launchctl setenv <KEY> <VALUE>"
+  (interactive)
+  (launchctl--command
+   (format "setenv %s"
+	   (read-string "Variable to set (format \"NAME VALUE\"): "))))
+
+(defun launchctl-unsetenv ()
+  "Set an environment variable for all processes.  Equivalent to \"launchctl unsetenv <KEY>\"."
+  (interactive)
+  (launchctl--command
+   (format "unsetenv %s"
+	   (read-string "Variable to unset: "))))
 
 (defun launchctl-refresh ()
-  "Display/Refresh the job list."
+  "Display/Refresh the process list."
   (interactive)
   (let ((name-width launchctl-name-width)
-        (pid-width launchctl-pid-width)
-        (status-width launchctl-status-width))
+	(pid-width launchctl-pid-width)
+	(status-width launchctl-status-width))
     (setq tabulated-list-format
-          (vector `("Name" ,name-width t)
-                  `("PID" ,pid-width t)
-                  `("Status" ,status-width nil))))
+	  (vector `("Name" ,name-width t)
+		  `("PID" ,pid-width t)
+		  `("Status" ,status-width nil))))
   (setq tabulated-list-use-header-line launchctl-use-header-line)
   (let ((entries '()))
     (with-temp-buffer
       (shell-command "launchctl list" t)
       ;; kill the header line without saving it to the kill-ring
-      (goto-char (point-min))
-      (end-of-line)
-      (set-mark (line-beginning-position))
-      (delete-region (region-beginning) (region-end))
+      (save-excursion
+	    (goto-char (point-min))
+	    (forward-line 1)
+	    (set-mark (point-min))
+	    (delete-region (region-beginning) (region-end)))
       (dolist (l (split-string (buffer-string) "\n" t))
 	(let ((fields (split-string l "\t" t)))
-	  (if (or (string= launchctl-filter-regex "")
+	  (if (or (eq launchctl-filter-regex nil)
+		  (string= launchctl-filter-regex "")
 		  (string-match launchctl-filter-regex (nth 2 fields)))
 	      (push (list (nth 2 fields) (vector (launchctl--prettify
 						  (nth 2 fields))
@@ -166,50 +281,90 @@
   (tabulated-list-init-header)
   (tabulated-list-print t))
 
-(defun launchctl-help ()
-  "Display help message for Launchctl Mode."
-  (interactive)
-  (message "[g]refresh; [n]ew control file; [l]oad job; [u]nload job; relo[a]d job\n[s]tart job; st[o]p job; [r]estart job; [i]nfo about job; [e]dit control file; [*]regex filtering; sor[t] by name"))
-
 (defun launchctl-filter ()
-  "Filter job list by regular expressions."
+  "Filter display by regular expressions."
   (interactive)
-  (setq launchctl-filter-regex (read-string "Regex (<RET> to clear): "))
+  (setq launchctl-filter-regex (read-regexp "Filter regex (. to clear filter): "
+					    launchctl-filter-regex))
   (launchctl-refresh))
 
 (defun launchctl--ask-file-name ()
-  (read-file-name "Control file: " launchctl-agent-directory))
+  "Prompt user for a configuration file."
+  (read-file-name "Configuration file: " (car launchctl-search-path)))
 
-(defun launchctl--entry-file-name ()
-  "Check if <launchctl-agent-directory>/<job>.plist exists. If not the
-user will be prompted for the location"
-  (let ((file-name (expand-file-name (concat (tabulated-list-get-id) ".plist"))))
-    (if (not (file-readable-p file-name))
-      (launchctl--ask-file-name)
+(defun launchctl--guess-file-name ()
+  "Check if the corresponding configuration file exists in the search path.  If not, user will be prompted for the location."
+  (let ((file-name nil)
+	(id (tabulated-list-get-id))
+	(search-path launchctl-search-path))
+    (while (and (eq file-name nil)
+		(not (eq search-path nil))) 
+      (let ((tmp-file-name (expand-file-name (format "%s.plist" id)
+					     (car search-path))))
+	(if (file-readable-p tmp-file-name)
+	    (setq file-name tmp-file-name)
+	  (setq search-path (cdr search-path)))))
+    (if (eq file-name nil)
+	(launchctl--ask-file-name) ;; file not in the search path, prompt user!
       file-name)))
 
-(defun launchctl--command (&rest e)
-  (shell-command (concat "launchctl " (mapconcat 'identity e " "))))
+(defun launchctl--command (cmd &rest e)
+  "Make the actual call to launchctl.  CMD is the subcommand while E is the argument list of variable length."
+  (shell-command (format "launchctl %s %s" cmd (mapconcat 'identity e " "))))
 
-(defun launchctl-unload ()
-  "Unload the job."
+(defun launchctl-remove ()
+  "Remove a service."
   (interactive)
-  (launchctl--command "unload" launchctl--entry-file-name)
+  (launchctl--command "remove" (tabulated-list-get-id))
   (launchctl-refresh))
+
+(defun launchctl-unload (&optional file-name)
+  "Unload the service.  FILE-NAME is the service configuration file.  Equivalent to \"launchctl unload <service>\"."
+  (interactive)
+  (let ((file-name (if (eq file-name nil)
+		       (launchctl--guess-file-name)
+		     (file-name))))
+    (launchctl--command "unload" file-name)
+    (launchctl-refresh)))
 
 (defun launchctl-load ()
-  "Load the job."
+  "Load service.  FILE-NAME is the service configuration file to load.  Equivalent to \"launchctl load <service>\"."
   (interactive)
-  (launchctl--command "load" (launchctl--entry-file-name))
+  (launchctl--command "load" (launchctl--ask-file-name))
   (launchctl-refresh))
 
-(defun launchctl-edit ()
-  "Edit the corresponding .plist for the job."
+(defun launchctl-reload (&optional file-name)
+  "Restart service.  FILE-NAME is the service configuration file to reload.  The same as load and then reload."
+    (interactive)
+  (let ((file-name (if (eq file-name nil)
+		       (launchctl--guess-file-name)
+		     (file-name))))
+    (launchctl--command "unload" file-name)
+    (launchctl--command "load" file-name)
+    (launchctl-refresh)))
+
+(defun launchctl-enable ()
+  "Enable service permanently.  Equivalent to \"launchctl load -w <service>\"."
   (interactive)
-  (find-file-other-window (launchctl--entry-file-name)))
+  (launchctl--command "load -w" (launchctl--ask-file-name))
+  (launchctl-refresh))
+
+(defun launchctl-disable (&optional file-name)
+  "Disable service permanently.  FILE-NAME is the service configuration file.  Equivalent to \"launchctl unload -w <service>\"."
+  (interactive)
+  (let ((file-name (if (eq file-name nil)
+		       (launchctl--guess-file-name)
+		     (file-name))))
+    (launchctl--command "unload -w" file-name)
+    (launchctl-refresh)))
+
+(defun launchctl-edit ()
+  "Edit service plist configuration file."
+  (interactive)
+  (find-file-other-window (launchctl--guess-file-name)))
 
 (defun launchctl-new ()
-  "Create a new job control file. The default directory is ~/Library/LaunchAgents."
+  "Create a new service configuration file."
   (interactive)
   (let ((file-name (launchctl--ask-file-name)))
     (let ((buf (get-file-buffer file-name))
@@ -220,38 +375,37 @@ user will be prompted for the location"
 	(set-visited-file-name file-name)
 	(if (equal (buffer-size) 0)
 	    (progn
-	      (insert launchctl-control-template) 
-	      (while (search-forward "{LABEL}" nil t)
+	      (insert launchctl-configuration-template)
+	      (goto-char (point-min))
+	      (while (search-forward "{label}" nil t)
 		(replace-match base-name nil t))
 	      (set-auto-mode))))
       (switch-to-buffer-other-window buf))))
 
 (defun launchctl-stop ()
-  "Stop the job. Equivalent to \"launchctl stop <job>\""
+  "Stop service.  Equivalent to \"launchctl stop <service>\"."
   (interactive)
   (launchctl--command "stop" (tabulated-list-get-id))
   (launchctl-refresh))
 
 (defun launchctl-start ()
-  "Start the job. Equvalent to \"launchctl start <job>\""
+  "Start service.  Equvalent to \"launchctl start <service>\"."
   (interactive)
   (launchctl--command "start" (tabulated-list-get-id))
   (launchctl-refresh))
 
-(defun launchctl-restart ()
-  "Restart the job. The same as stop and then start." 
-  (interactive)
-  (let ((id (tabulated-list-get-id)))
-    (launchctl--command "stop" id)
-    (launchctl--command "start" id)
-    (launchctl-refresh)))
-
 (defun launchctl-info ()
-  "Show detail info of the job. Equivalent to \"launchctl list <job>\""
+  "Show service.  Equivalent to \"launchctl list <service>\"."
   (interactive)
   (launchctl--command "list" (tabulated-list-get-id)))
 
+(defun launchctl-plist-key-complete ()
+  "Provide completion for plist keys."
+  (interactive)
+  (insert  (completing-read "Keys: " launchctl-plist-keys)))
+
 (defun launchctl--prettify (name)
+  "Fontify the NAME column."
   (propertize name
               'font-lock-face 'launchctl-name
               'mouse-face 'highlight))
