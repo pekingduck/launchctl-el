@@ -32,11 +32,12 @@
 
 ;;; Commentary:
 
-;; Launchctl allows you to manage system and user agents, daemons
-;; easily on Mac OS X.
+;; launchctl is a major mode in Emacs that eases the loading and unloading of services (user agents and system daemons) managed by launchd on Mac OS X.
 ;;
-;; - (require 'launchctl)
+;; launchctl interfaces with the command line tool launchctl under the hood.
+;;
 ;; - Type M-x launchctl RET
+;;
 ;; - Press "h" to display help
 ;;
 ;;; Code:
