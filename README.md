@@ -2,6 +2,8 @@
 
 ## Introduction
 
+![Screenshot](https://raw.githubusercontent.com/pekingduck/launchctl-el/master/screen.png)
+
 *launchctl* is a major mode in Emacs that eases the loading and unloading of
 services (user agents and system daemons) managed by *launchd* on Mac OS X.
 
