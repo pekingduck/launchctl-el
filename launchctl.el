@@ -66,6 +66,7 @@
   :group 'launchctl)
 
 (defcustom launchctl-configuration-template "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+
 <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
 <plist version=\"1.0\">
   <dict>
@@ -100,7 +101,7 @@
   :type 'number
   :group 'launchctl)
 
-(defcustom launchctl-filter-regex "" "Filter regex for launchctl-refresh. Empty string for no filter.")
+(defcustom launchctl-filter-regex "" "Filter regex for launchctl-refresh.  Empty string for no filter.")
 
 (defvar launchctl-plist-keys
   '("AbandonProcessGroup"
@@ -199,7 +200,7 @@
     ("$" "Set environment variable" launchctl-setenv)
     ("#" "Unset environment variable" launchctl-unsetenv)
     ("h" "Display this help message" launchctl-help))
-  "Key descriptions and bindings")
+  "Key descriptions and bindings.")
 
 (defvar launchctl-mode-map
   (let ((map (make-sparse-keymap)))
@@ -236,7 +237,7 @@
 )
 
 (defun launchctl-setenv ()
-  "Set an environment variable (for all services).  Equivalent to \"launchctl setenv <KEY> <VALUE>"
+  "Set an environment variable (for all services).  Equivalent to \"launchctl setenv <KEY> <VALUE>."
   (interactive)
   (launchctl--command
    (format "setenv %s"
@@ -299,7 +300,7 @@
 	(id (tabulated-list-get-id))
 	(search-path launchctl-search-path))
     (while (and (eq file-name nil)
-		(not (eq search-path nil))) 
+		(not (eq search-path nil)))
       (let ((tmp-file-name (expand-file-name (format "%s.plist" id)
 					     (car search-path))))
 	(if (file-readable-p tmp-file-name)
