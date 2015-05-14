@@ -32,8 +32,10 @@
 
 ;;; Commentary:
 
-;; Emacs interface to launchctl, an frontend to launchd on Mac OS X.
+;; Launchctl allows you to manage system and user agents, daemons
+;; easily on Mac OS X.
 ;;
+;; - (require 'launchctl)
 ;; - Type M-x launchctl RET
 ;; - Press "h" to display help
 ;;
@@ -51,7 +53,7 @@
   :type 'boolean
   :group 'launchctl)
 
-(defface launchctl-name
+(defface launchctl-name-face
   '((t (:weight bold)))
   "Face for service names in the display buffer."
   :group 'launchctl)
@@ -174,8 +176,8 @@
     "WatchPaths"
     "Weekday"
     "WorkingDirectory"
-    "inetdCompatibility"
-    ) "A complete list of plist keys used in configuration files.")
+    "inetdCompatibility")
+  "A complete list of plist keys used in configuration files.")
 
 (defvar launchctl-key-info
   '(("g" "Refresh" launchctl-refresh)
@@ -199,12 +201,11 @@
     ("h" "Display this help message" launchctl-help))
   "Key descriptions and bindings")
 
-
 (defvar launchctl-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
     (dolist (e launchctl-key-info)
-      (define-key map (car e) (caddr e)))
+      (define-key map (car e) (car (cdr (cdr e)))))
     map))
 
 (defun launchctl-help ()
