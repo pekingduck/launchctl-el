@@ -327,7 +327,7 @@
   (interactive)
   (let ((file-name (if (eq file-name nil)
 		       (launchctl--guess-file-name)
-		     (file-name))))
+		     file-name)))
     (launchctl--command "unload" file-name)
     (launchctl-refresh)))
 
@@ -342,7 +342,7 @@
     (interactive)
   (let ((file-name (if (eq file-name nil)
 		       (launchctl--guess-file-name)
-		     (file-name))))
+		     file-name)))
     (launchctl--command "unload" file-name)
     (launchctl--command "load" file-name)
     (launchctl-refresh)))
@@ -358,7 +358,7 @@
   (interactive)
   (let ((file-name (if (eq file-name nil)
 		       (launchctl--guess-file-name)
-		     (file-name))))
+		     file-name)))
     (launchctl--command "unload -w" file-name)
     (launchctl-refresh)))
 
