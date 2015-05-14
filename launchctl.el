@@ -223,6 +223,7 @@
   (setq default-directory (car launchctl-search-path))
   (add-hook 'tabulated-list-revert-hook 'launchctl-refresh nil t))
 
+;;;###autoload
 (defun launchctl()
   "Launchctl - major mode for managing Launchd services on Mac OS X.  This is the entry point."
   (interactive)
