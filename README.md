@@ -59,6 +59,8 @@ Put the code below in your .emacs to have Emacs recognize plist files as XML fil
 
 #### `e` **edit configuration file.**
 
+#### `v` **view configuration file in read-only mode.**
+
 #### `l` **load service**
 
 Equivalent to
