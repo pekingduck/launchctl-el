@@ -186,6 +186,7 @@
     ("q" "Quit window" quit-window)
     ("n" "Create new service configuration file" launchctl-new)
     ("e" "Edit configuration file" launchctl-edit)
+    ("v" "View configuration file" launchctl-view)
     ("t" "Sort list" tabulated-list-sort)
     ("l" "Load service" launchctl-load)
     ("u" "Unload service" launchctl-unload)
@@ -325,9 +326,7 @@
 (defun launchctl-unload (&optional file-name)
   "Unload the service.  FILE-NAME is the service configuration file.  Equivalent to \"launchctl unload <service>\"."
   (interactive)
-  (let ((file-name (if (eq file-name nil)
-		       (launchctl--guess-file-name)
-		     file-name)))
+  (let ((file-name (or file-name (launchctl--guess-file-name))))
     (launchctl--command "unload" file-name)
     (launchctl-refresh)))
 
@@ -340,9 +339,7 @@
 (defun launchctl-reload (&optional file-name)
   "Restart service.  FILE-NAME is the service configuration file to reload.  The same as load and then reload."
     (interactive)
-  (let ((file-name (if (eq file-name nil)
-		       (launchctl--guess-file-name)
-		     file-name)))
+  (let ((file-name (or file-name (launchctl--guess-file-name))))
     (launchctl--command "unload" file-name)
     (launchctl--command "load" file-name)
     (launchctl-refresh)))
@@ -356,9 +353,7 @@
 (defun launchctl-disable (&optional file-name)
   "Disable service permanently.  FILE-NAME is the service configuration file.  Equivalent to \"launchctl unload -w <service>\"."
   (interactive)
-  (let ((file-name (if (eq file-name nil)
-		       (launchctl--guess-file-name)
-		     file-name)))
+  (let ((file-name (or file-name (launchctl--guess-file-name))))
     (launchctl--command "unload -w" file-name)
     (launchctl-refresh)))
 
@@ -367,7 +362,14 @@
   (interactive)
   (find-file-other-window (launchctl--guess-file-name)))
 
-(defun launchctl-new ()
+(defun launchctl-view ()
+  "View configuration file."
+  (interactive)
+  (find-file-other-window (launchctl--guess-file-name))
+  (view-mode)
+  (message "Press q to quit"))
+
+(defun launchctl-new () 
   "Create a new service configuration file."
   (interactive)
   (let ((file-name (launchctl--ask-file-name)))
