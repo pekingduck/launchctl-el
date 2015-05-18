@@ -211,13 +211,25 @@
       (define-key map (car e) (car (cdr (cdr e)))))
     map))
 
+(defconst launchctl-help-buffer "*Launchctl Help*"
+  "Name of the help buffer.")
+
 (defun launchctl-help ()
-  "Display help message."
+  "Display help message in a new buffer."
   (interactive)
-  (message (mapconcat
-	    (lambda (p) (format "%s - %s" (car p) (cadr p)))
-	    launchctl-key-info
-	    "\n")))
+  (with-current-buffer (get-buffer-create launchctl-help-buffer)
+    (view-mode 0)
+    (erase-buffer)
+    (pop-to-buffer launchctl-help-buffer)
+    (insert "Key Function\n--- --------\n")
+    (insert (mapconcat
+	     (lambda (p) (format "%s   %s" (car p) (cadr p)))
+	     launchctl-key-info
+	     "\n"))
+    (insert "\n\nOnline documentation: https://github.com/pekingduck/launchctl-el")
+    (view-mode)
+    (message "Press q to quit.")))
+
 
 (define-derived-mode launchctl-mode tabulated-list-mode "launchctl"
   "Major mode for managing Launchd services on Mac OS X."
