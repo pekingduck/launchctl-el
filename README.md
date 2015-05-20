@@ -10,7 +10,7 @@ services (user agents and system daemons) managed by *launchd* on Mac OS X.
 *launchctl* interfaces with the command line tool `launchctl` under the hood.
 
 ## Installation
-*Launchctl* is available on MELPA.
+*Launchctl* is available from [MELPA](http://melpa.org/#/launchctl).
 
 This package requires *tabulated-list-mode* which is only available for Emacs 24
 and onwards.
