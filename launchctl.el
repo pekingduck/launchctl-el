@@ -425,7 +425,7 @@
 (defun launchctl--prettify (name)
   "Fontify the NAME column."
   (propertize name
-              'font-lock-face 'launchctl-name
+              'font-lock-face 'launchctl-name-face
               'mouse-face 'highlight))
 
 (provide 'launchctl)
