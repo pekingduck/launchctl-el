@@ -102,7 +102,10 @@
   :type 'number
   :group 'launchctl)
 
-(defcustom launchctl-filter-regex "" "Filter regex for launchctl-refresh.  Empty string for no filter.")
+(defcustom launchctl-filter-regex ""
+  "Filter regex for launchctl-refresh.  Empty string for no filter."
+  :type 'string
+  :group 'launchctl)
 
 (defvar launchctl-plist-keys
   '("AbandonProcessGroup"
@@ -381,7 +384,7 @@
   (view-mode)
   (message "Press q to quit"))
 
-(defun launchctl-new () 
+(defun launchctl-new ()
   "Create a new service configuration file."
   (interactive)
   (let ((file-name (launchctl--ask-file-name)))
