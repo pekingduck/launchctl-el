@@ -60,6 +60,8 @@
   :group 'launchctl)
 
 (defcustom launchctl-search-path '("~/Library/LaunchAgents/"
+				   "/Library/LaunchAgents/"
+				   "/Library/LaunchDaemons/"
 				   "/System/Library/LaunchAgents/"
 				   "/System/Library/LaunchDaemons/")
   "The search path for service configuration files."
